@@ -5,7 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-
+#include "procinfo.h"
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -169,6 +169,7 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  p->trace_mask = 0;
 }
 
 // Create a user page table for a given process, with no user memory,
@@ -302,6 +303,7 @@ fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  np->trace_mask = p->trace_mask;
   // increment reference counts on open file descriptors.
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
@@ -692,4 +694,43 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int
+getprocinfo(int pid, uint64 info_addr)
+{
+  struct proc *p;
+  struct procinfo info;
+  int found = 0;
+
+  for(p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+    if(p->pid == pid && p->state != UNUSED) {
+      info.pid = p->pid;
+      info.state = p->state;
+      info.sz = p->sz;
+
+      safestrcpy(info.name, p->name, sizeof(info.name));
+
+      if(p->parent)
+        info.ppid = p->parent->pid;
+      else
+        info.ppid = 0;
+        
+      found = 1;
+      release(&p->lock);
+      break;
+    }
+    release(&p->lock);
+  }
+
+  if(!found) {
+    return -1;
+  }
+  struct proc *my_p = myproc();
+  if(copyout(my_p->pagetable, info_addr, (char *)&info, sizeof(info)) < 0) {
+    return -1;
+  }
+
+  return 0;
 }

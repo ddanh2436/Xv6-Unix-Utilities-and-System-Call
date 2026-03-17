@@ -22,7 +22,7 @@ void tree(char *path, int depth) {
     // 1. Mở file/thư mục [cite: 59]
     if((fd = open(path, 0)) < 0){
         fprintf(2, "tree: cannot open %s\n", path);
-        return;
+        exit(1);
     }
 
     // 2. Lấy thông tin (stat) của file/thư mục [cite: 59]

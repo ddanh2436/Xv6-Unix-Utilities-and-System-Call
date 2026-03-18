@@ -551,12 +551,6 @@ sleep(void *chan, struct spinlock *lk)
 {
   struct proc *p = myproc();
   
-  // Must acquire p->lock in order to
-  // change p->state and then call sched.
-  // Once we hold p->lock, we can be
-  // guaranteed that we won't miss any wakeup
-  // (wakeup locks p->lock),
-  // so it's okay to release lk.
 
   acquire(&p->lock);  //DOC: sleeplock1
   release(lk);
@@ -575,8 +569,6 @@ sleep(void *chan, struct spinlock *lk)
   acquire(lk);
 }
 
-// Wake up all processes sleeping on chan.
-// Must be called without any p->lock.
 void
 wakeup(void *chan)
 {
@@ -593,9 +585,6 @@ wakeup(void *chan)
   }
 }
 
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
 int
 kill(int pid)
 {
@@ -636,9 +625,6 @@ killed(struct proc *p)
   return k;
 }
 
-// Copy to either a user address, or kernel address,
-// depending on usr_dst.
-// Returns 0 on success, -1 on error.
 int
 either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 {
@@ -651,9 +637,6 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
   }
 }
 
-// Copy from either a user address, or kernel address,
-// depending on usr_src.
-// Returns 0 on success, -1 on error.
 int
 either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
@@ -666,9 +649,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
   }
 }
 
-// Print a process listing to console.  For debugging.
-// Runs when user types ^P on console.
-// No lock to avoid wedging a stuck machine further.
+
 void
 procdump(void)
 {
@@ -696,12 +677,13 @@ procdump(void)
   }
 }
 
-int
-getprocinfo(int pid, uint64 info_addr)
+int getprocinfo(int pid, uint64 info_addr)
 {
   struct proc *p;
   struct procinfo info;
   int found = 0;
+
+  acquire(&wait_lock); 
 
   for(p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
@@ -723,10 +705,13 @@ getprocinfo(int pid, uint64 info_addr)
     }
     release(&p->lock);
   }
+  
+  release(&wait_lock); 
 
   if(!found) {
     return -1;
   }
+  
   struct proc *my_p = myproc();
   if(copyout(my_p->pagetable, info_addr, (char *)&info, sizeof(info)) < 0) {
     return -1;

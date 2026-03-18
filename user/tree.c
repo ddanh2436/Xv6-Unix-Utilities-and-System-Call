@@ -3,8 +3,6 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 
-// Hàm phụ trợ để lấy tên file/thư mục từ một đường dẫn dài
-// Ví dụ: truyền vào "a/aa/b", hàm sẽ trả về "b"
 char* get_basename(char *path) {
     char *p;
     // Đi lùi từ cuối chuỗi lên để tìm dấu '/' cuối cùng
